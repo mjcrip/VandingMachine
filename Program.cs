@@ -36,6 +36,7 @@ namespace VandingMachine
                 if (machine.IsSuccessfull)
                     return;
             }
+            Console.WriteLine("Price: " + machine.SelectedProduct.Value);
             Console.Write("Insert Coin \n");
         }
     }
