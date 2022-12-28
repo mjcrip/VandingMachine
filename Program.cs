@@ -16,16 +16,37 @@ namespace VandingMachine
     {
         public static void Main()
         {
-            var machine = new Machine();
+            //Test Cases:
+            TestCase(ProductType.Cola, new float[] { 1, 0.05f, 0.1f, 0.25f, 0.25f, 0.25f, 0.1f, 0.1f, 0.1f });
+            TestCase(ProductType.Candy, new float[] { 1, 0.05f, 0.1f, 0.25f, 0.25f, 0.25f, 0.1f, 0.1f, 0.1f, 0.25f, 0.25f, 0.25f });
+            TestCase(ProductType.Chips, new float[] { 1, 0.05f, 0.1f, 0.25f, 0.25f, 0.25f, 0.1f, 0.1f, 0.1f, 0.25f, 0.25f, 0.25f });
+
+            TestCase(ProductType.Chips, new float[] { 1, 0.05f, 0.1f, 0.25f, 0.25f, 0.25f, 0.1f, 0.1f, 0.1f });
+            TestCase(ProductType.Cola, new float[] { 1, 0.05f, 0.1f, 0.25f, 0.25f, 0.25f, 0.1f, 0.1f, 0.1f, 0.25f, 0.25f, 0.25f });
+            TestCase(ProductType.Candy, new float[] { 1, 0.05f, 0.1f, 0.25f, 0.25f, 0.25f, 0.1f, 0.1f, 0.1f, 0.25f, 0.25f, 0.25f });
+            TestCase(ProductType.Candy, new float[] { 1 });
         }
 
+        private static void TestCase(ProductType cola, float[] floats)
+        {
+            var machine = new Machine(cola);
+            foreach (var item in floats)
+            {
+                machine.InsertCoin(new Coin(item));
+                if (machine.IsSuccessfull)
+                    return;
+            }
+            Console.Write("Insert Coin \n");
+        }
     }
     public class Machine
     {
-        public Machine()
+        public Machine(ProductType productType)
         {
             ReInstantiateMachine();
+            SelectedProduct = new Product(productType);
         }
+        public bool IsSuccessfull { get; private set; }
         private List<Coin> InsertedCoins { get; set; }
         public Product SelectedProduct { get; set; }
 
@@ -34,42 +55,41 @@ namespace VandingMachine
         /// </summary>
         public void Display()
         {
-            if (SelectedProduct == null)
-            {
-                Console.WriteLine("Select Product \n");
-                SelectProduct();
-                Dispence();
-            }
-            else if (InsertedCoins.Count == 0)
+            if (InsertedCoins.Count == 0)
             {
                 Console.Write("Insert Coin \n");
-                InsertCoin();
             }
             else if (InsertedCoins.Count > 0)
             {
-                Console.WriteLine("Available Amount:" + InsertedCoins.Where(t => t.GetCoinType() != CoinType.Other).Sum(t => t.Value));
+                double sum = 0;
+                foreach (var item in InsertedCoins.Where(t => t.CoinType != CoinType.Other))
+                {
+                    sum += Math.Round(item.Value, 2);
+                }
+                Console.WriteLine(Math.Round(sum, 2));// + "    //(Available Amount)");
             }
         }
 
         /// <summary>
         /// Dispense the product and coins
         /// </summary>
-        public void Dispence()
+        public void Dispense()
         {
             var remainingCoins = new List<Coin>();
             if (CanDispenseProduct(ref remainingCoins))
             {
+                var coinDispensed = "Coin Dispensed: Other(" + remainingCoins.Where(t=>t.CoinType == CoinType.Other).Count() + "), "+
+                    "Dime(" + remainingCoins.Where(t => t.CoinType == CoinType.Dime).Count() + "), "+
+                    "Nickel(" + remainingCoins.Where(t => t.CoinType == CoinType.Nickel).Count() + "), "+
+                    "Quarter(" + remainingCoins.Where(t => t.CoinType == CoinType.Quarter).Count() + "), ";
 
-                Console.WriteLine("\n\n\n\nThank You \n\n" +
-                    (remainingCoins.Count > 0 ? "Coin dispensed with count " + string.Join(", ", remainingCoins.GroupBy(t => t.GetCoinType()).ToDictionary(y => y.Key, y => y.ToList().Count).Select(r => r.Key + ": " + r.Value).ToList()) : "No coin were dispense"));
-                Console.WriteLine("Press key to check another test case");
-                Console.ReadKey();
-                ReInstantiateMachine();
+                Console.WriteLine("\n\nThank You   //"+ coinDispensed);
+                IsSuccessfull = true;
             }
             else
             {
+                IsSuccessfull = false;
                 Display();
-                InsertCoin();
             }
         }
 
@@ -81,32 +101,25 @@ namespace VandingMachine
         public bool CanDispenseProduct(ref List<Coin> coins)
         {
             coins = new List<Coin>();
-            if (SelectedProduct != null)
+            var productValue = SelectedProduct.Value;
+            InsertedCoins = InsertedCoins.OrderByDescending(t => t.Value).ToList();
+            float calculatedValue = 0f;
+            foreach (var item in InsertedCoins)
             {
-                var productValue = SelectedProduct.GetProductValue();
-                InsertedCoins = InsertedCoins.OrderByDescending(t => t.Value).ToList();
-
-                float calculatedValue = 0f;
-                foreach (var item in InsertedCoins)
+                if (Math.Round(calculatedValue, 2) + Math.Round(item.Value, 2) > Math.Round(productValue, 2) || 
+                    item.CoinType == CoinType.Other)
                 {
-                    if (Math.Round(calculatedValue, 2) + Math.Round(item.Value, 2) > Math.Round(productValue, 2))
-                    {
-                        coins.Add(item);
-                    }
-                    else
-                    {
-                        calculatedValue += item.Value;
-                    }
+                    coins.Add(item);
                 }
-                if (Math.Round(calculatedValue, 2) == Math.Round(productValue, 2))
-                    return true;
                 else
-                    return false;
+                {
+                    calculatedValue += item.Value;
+                }
             }
+            if (Math.Round(calculatedValue, 2) == Math.Round(productValue, 2))
+                return true;
             else
-            {
-                ReInstantiateMachine();
-            }
+                return false;
             return false;
         }
 
@@ -117,7 +130,7 @@ namespace VandingMachine
         public void InsertCoin(Coin coin)
         {
             InsertedCoins.Add(coin);
-            Dispence();
+            Dispense();
         }
 
         /// <summary>
@@ -125,38 +138,10 @@ namespace VandingMachine
         /// </summary>
         private void ReInstantiateMachine()
         {
-            Console.Clear();
-            Console.WriteLine("A. In case of select product press \n1. Cola ($1) \n2. Chips ($0.5)\n3. Candy ($0.65)\n\n\n In case of Insert Coin press \n1. $0.05 \n2. $0.1\n3. $0.25 \n\n\n");
             InsertedCoins = new List<Coin>();
             SelectedProduct = null;
             Display();
         }
-
-        #region Console Functions
-        private void InsertCoin()
-        {
-            var key = Console.ReadKey();
-            Console.WriteLine();
-            if (key.Key == ConsoleKey.D1)
-                InsertCoin(new Coin(0.05f));
-            if (key.Key == ConsoleKey.D2)
-                InsertCoin(new Coin(0.1f));
-            if (key.Key == ConsoleKey.D3)
-                InsertCoin(new Coin(0.25f));
-        }
-
-        private void SelectProduct()
-        {
-            var key = Console.ReadKey();
-            if (key.Key == ConsoleKey.D1)
-                SelectedProduct = new Product(ProductType.Cola);
-            else if (key.Key == ConsoleKey.D2)
-                SelectedProduct = new Product(ProductType.Chips);
-            if (key.Key == ConsoleKey.D3)
-                SelectedProduct = new Product(ProductType.Candy);
-            Console.WriteLine();
-        }
-        #endregion
     }
 
 
@@ -170,7 +155,7 @@ namespace VandingMachine
             Value = value;
         }
         public float Value { get; private set; }
-
+        public CoinType CoinType { get => GetCoinType(); }
         public CoinType GetCoinType()
         {
             switch (Value)
@@ -198,7 +183,8 @@ namespace VandingMachine
         }
 
         public ProductType ProductType { get; private set; }
-        public float GetProductValue()
+        public float Value { get => GetProductValue(); }
+        private float GetProductValue()
         {
             switch (ProductType)
             {
